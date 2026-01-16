@@ -405,3 +405,48 @@ void testPathPlanning() {
     
     wait(3000, msec);
 }
+
+// PID performance test: drives forward 6 times, 20 inches each
+void pidtest() {
+    Controller.Screen.clearScreen();
+    Controller.Screen.setCursor(1, 1);
+    Controller.Screen.print("PID Test Starting...");
+    wait(1000, msec);
+
+    const double distance_in = 20.0; // 20 inches per segment
+    const int segments = 6;
+
+    Brain.Timer.reset();
+    double last_time = 0.0;
+
+    for (int i = 1; i <= segments; i++) {
+        // Drive forward 20 inches
+        chassis.drive_distance(distance_in);
+
+        // Get elapsed time since last segment
+        double current_time = Brain.Timer.time(msec) / 1000.0; // convert to seconds
+        double segment_time = current_time - last_time;
+        last_time = current_time;
+
+        // Display on controller
+        Controller.Screen.clearScreen();
+        Controller.Screen.setCursor(1, 1);
+        Controller.Screen.print("Segment %d/6", i);
+        Controller.Screen.setCursor(2, 1);
+        Controller.Screen.print("Time: %.2f sec", segment_time);
+        Controller.Screen.setCursor(3, 1);
+        Controller.Screen.print("Total: %.2f sec", current_time);
+
+        wait(1500, msec);
+    }
+
+    // Final summary
+    Controller.Screen.clearScreen();
+    Controller.Screen.setCursor(1, 1);
+    Controller.Screen.print("Test Complete!");
+    Controller.Screen.setCursor(2, 1);
+    Controller.Screen.print("Total: %.2f sec", last_time);
+    Controller.Screen.setCursor(3, 1);
+    Controller.Screen.print("Avg: %.2f sec", last_time / segments);
+    wait(3000, msec);
+}

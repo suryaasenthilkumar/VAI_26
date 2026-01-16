@@ -49,3 +49,6 @@ void emergencyStop();
 
 // Tests the path planning algorithm
 void testPathPlanning();
+
+// PID performance test: 6 consecutive 20-inch drives with timing
+void pidtest();

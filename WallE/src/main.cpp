@@ -10,6 +10,11 @@
 // ---- START VEXCODE CONFIGURED DEVICES ----
 // ---- END VEXCODE CONFIGURED DEVICES ----
 #include "ai_functions.h"
+#include "astar.h"
+#include "field_map.h"
+#include <cmath>
+#include <cstdlib>
+#include <vector>
 
 using namespace vex;
 
@@ -139,9 +144,10 @@ Drive chassis(
 );
 DualGPS GPS = DualGPS(LGPS, RGPS, chassis.Gyro, vex::distanceUnits::cm);
 
-// Configure chassis PID/voltage limits with optimized turn tuning
+// Configure chassis PID/voltage limits with optimized tuning
 void configureChassis(){
-  chassis.set_drive_constants(12, 0.45, 0.0, 0.02, 0);
+  // Optimized drive PID: Kp=0.550, Ki=0.040, Kd=0.570
+  chassis.set_drive_constants(12, 0.550, 0.040, 0.570, 0);
   chassis.set_heading_constants(8, 0.40, 0.0, 0.02, 0);
   // Optimized turn PID: Kp=0.090, Ki=0.120, Kd=0.260
   chassis.set_turn_constants(8, 0.090, 0.120, 0.260, 0);
@@ -151,7 +157,7 @@ void configureChassis(){
   chassis.set_turn_exit_conditions(3.0, 300, 2000);
   chassis.set_swing_exit_conditions(3.0, 300, 2000);
 }
-  
+
 /*----------------------------------------------------------------------------*/
 // Create a robot_link on PORT1 using the unique name robot_32456_1
 // The unique name should probably incorporate the team number
@@ -225,6 +231,129 @@ void auto_Interaction(void) {
 
 bool firstAutoFlag = true;
 
+// Simple bearing helper (math coords -> navigation heading)
+static double bearingDegrees(double fromX, double fromY, double toX, double toY) {
+  double dx = toX - fromX;
+  double dy = toY - fromY;
+  double rad = atan2(dy, dx);
+  double deg = rad * 180.0 / M_PI;
+  // convert to navigation: 0° = north, clockwise positive
+  double nav = fmod(90.0 - deg, 360.0);
+  if (nav < 0) nav += 360.0;
+  return nav;
+}
+
+// Path plan and follow using A* (cm coordinates), modeled after testPathPlanning
+bool planAndFollowPathCm(double targetX_cm, double targetY_cm, float finalHeading, bool /*useSmooth*/) {
+  double curr_x = GPS.xPosition();
+  double curr_y = GPS.yPosition();
+  double curr_h = GPS.heading();
+
+  if ((curr_x == 0.0 && curr_y == 0.0) || std::isnan(curr_x) || std::isnan(curr_y) || std::isnan(curr_h)) {
+    return false;
+  }
+
+  FieldMap fieldMap;
+  fieldMap.populateStandardField();
+
+  const double robot_width_in = 13.5;
+  const double robot_radius_cm = robot_width_in * 2.54 * 0.5; // ~17.1 cm
+  const double safety_margin_cm = 0.0;                        // tune as needed
+  const double grid_resolution_cm = 60.96 / 2.0;              // 12 in / 2
+
+  std::vector<astar::Point> path = astar::findPath(
+      fieldMap, curr_x, curr_y, targetX_cm, targetY_cm,
+      grid_resolution_cm, robot_radius_cm, safety_margin_cm);
+
+  if (path.empty()) {
+    return false;
+  }
+
+  for (size_t i = 0; i < path.size(); i++) {
+    double wp_x = path[i].first;
+    double wp_y = path[i].second;
+
+    curr_x = GPS.xPosition();
+    curr_y = GPS.yPosition();
+    curr_h = GPS.heading();
+
+    if ((curr_x == 0.0 && curr_y == 0.0) || std::isnan(curr_x) || std::isnan(curr_y)) {
+      return false;
+    }
+
+    double bearing = bearingDegrees(curr_x, curr_y, wp_x, wp_y);
+    double dx = wp_x - curr_x;
+    double dy = wp_y - curr_y;
+    double dist_cm = sqrt(dx * dx + dy * dy);
+
+    if (dist_cm < 5.0) {
+      continue; // already close enough
+    }
+
+    double dist_in = dist_cm / 2.54;
+    chassis.set_heading(curr_h);
+    chassis.turn_to_angle(bearing);
+    chassis.drive_distance(dist_in);
+  }
+
+  // Final heading if requested
+  if (finalHeading >= 0) {
+    chassis.turn_to_angle(finalHeading);
+  }
+
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// Phase helpers for 105s autonomous: Phase 1 random roaming, Phase 2 to (-120,0)
+// ---------------------------------------------------------------------------
+
+static bool isSafeRandomTarget(double x, double y) {
+  // Keep targets within field bounds and away from the center obstacle
+  if (fabs(x) > 170 || fabs(y) > 170) return false;
+  if (fabs(x) + fabs(y) < 80) return false;
+  return true;
+}
+
+static bool pickRandomTarget(double &x, double &y) {
+  static bool seeded = false;
+  if (!seeded) {
+    srand(static_cast<unsigned>(Brain.Timer.system()));
+    seeded = true;
+  }
+  for (int i = 0; i < 20; i++) {
+    double rx = -170 + (rand() % 341);  // [-170,170]
+    double ry = -170 + (rand() % 341);
+    if (isSafeRandomTarget(rx, ry)) {
+      x = rx;
+      y = ry;
+      return true;
+    }
+  }
+  return false;
+}
+
+static void runPhase1(int phaseMillis) {
+  int phaseStart = Brain.Timer.system();
+  while (Brain.Timer.system() - phaseStart < phaseMillis) {
+    double tx = 0, ty = 0;
+    if (!pickRandomTarget(tx, ty)) break;
+
+    int moveStart = Brain.Timer.system();
+    bool ok = planAndFollowPathCm(tx, ty, -1, true);
+
+    // Bail if the move fails or runs long to keep phase responsive
+    if (!ok || Brain.Timer.system() - moveStart > 8000) {
+      chassis.drive_with_voltage(0, 0);
+    }
+  }
+}
+
+static void runPhase2() {
+  planAndFollowPathCm(-120.0, 0.0, -1, true);
+}
+
+/*
 void autonomousMain(void) {
   // ..........................................................................
   // The first time we enter this function we will launch our Isolation routine
@@ -239,6 +368,27 @@ void autonomousMain(void) {
     auto_Interaction();
 
   firstAutoFlag = false;
+}
+*/
+
+// New autonomous: 105s total. Phase 1 (85s) random paths, Phase 2 (last ~20s) drive to (-120,0).
+void autonomousMain(void) {
+  const int totalMs = 105000;
+  const int phase1Ms = 85000;
+  int start = Brain.Timer.system();
+
+  runPhase1(phase1Ms);
+  Controller.rumble("---");
+
+  if (Brain.Timer.system() - start < totalMs - 5000) { // leave buffer for endgame
+    runPhase2();
+  }
+}
+
+// Task wrapper to run autonomous from driver control
+int runAutonTask() {
+  autonomousMain();
+  return 0;
 }
 
 void driverControl(void) {
@@ -255,10 +405,29 @@ void driverControl(void) {
     calibrated = true;
   }
   while (true) {
+    // Button A: start phase-based autonomous
+    if(Controller.ButtonA.pressing()){
+      waitUntil(!Controller.ButtonA.pressing());
+      Controller.Screen.clearScreen();
+      Controller.Screen.setCursor(1, 1);
+      Controller.Screen.print("Auton: 105s");
+      runAutonTask();
+      wait(500, msec);
+      Controller.Screen.clearScreen();
+      Controller.Screen.setCursor(1, 1);
+      Controller.Screen.print("Complete");
+      wait(500, msec);
+    }
+
     chassis.control_arcade();
     if(Controller.ButtonDown.pressing()){
       waitUntil(!Controller.ButtonDown.pressing());
       testPathPlanning();
+      wait(500, msec);
+    }
+    if(Controller.ButtonUp.pressing()){
+      waitUntil(!Controller.ButtonUp.pressing());
+      pidtest();
       wait(500, msec);
     }
   }
