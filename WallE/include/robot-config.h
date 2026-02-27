@@ -26,9 +26,9 @@ extern motor RightDriveC;
 extern motor_group RightDrive;
 
 // Intake motors
-extern motor Intake;
-extern motor Belt;
-extern motor Score;
+extern motor FirstStage;
+extern motor SecondStage;
+extern motor ThirdStage;
 
 // Pneumatics
 extern digital_out ColorSort;
@@ -38,6 +38,12 @@ extern inertial Inertial;
 
 // Smartdrive object for built-in VEX drivetrain methods
 extern smartdrive Drivetrain;
+
+//Sensors
+extern optical OpticalTop;
+extern optical OpticalBottom;
+extern optical OpticalBottom1;
+
 
 /**
  * Used to initialize code/tasks/devices added using tools in VEXcode Pro.

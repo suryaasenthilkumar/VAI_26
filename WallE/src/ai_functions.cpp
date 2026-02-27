@@ -185,20 +185,20 @@ void goToObject(OBJECT type){
 }
 
 void runIntake(vex::directionType dir) {
-    Intake.spin(dir);
-    Belt.spin(dir);
+    FirstStage.spin(dir);
+    SecondStage.spin(dir);
 }
 
 void runIntake(vex::directionType dir, int rotations, bool driveForward = false) {
-    Intake.spinFor(dir, rotations, vex::rotationUnits::rev, false);
-    Belt.spinFor(dir, rotations, vex::rotationUnits::rev, !driveForward);
+    FirstStage.spinFor(dir, rotations, vex::rotationUnits::rev, false);
+    SecondStage.spinFor(dir, rotations, vex::rotationUnits::rev, !driveForward);
     if (driveForward)
         Drivetrain.driveFor(directionType::fwd, 70, vex::distanceUnits::cm, 40, velocityUnits::pct);
 }
 
 void stopIntake() {
-    Intake.stop();
-    Belt.stop();
+    FirstStage.stop();
+    SecondStage.stop();
 }
 
 void emergencyStop() {

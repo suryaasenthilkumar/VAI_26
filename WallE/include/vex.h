@@ -13,8 +13,10 @@
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
+
 #include "ai_jetson.h"
 #include "ai_robot_link.h"
+#include "color.h"
 
 
 #define waitUntil(condition)                                                   \

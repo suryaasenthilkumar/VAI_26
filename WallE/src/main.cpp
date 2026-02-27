@@ -25,9 +25,10 @@ controller Controller;
 gps LGPS = gps(PORT9, -13.5, -5.5, distanceUnits::cm, 270);
 gps RGPS = gps(PORT10, 13.5, -5.5, distanceUnits::cm, 90);
 // DualGPS GPS = DualGPS(LGPS, RGPS, Inertial, vex::distanceUnits::cm);
+//Sensors
 optical OpticalTop = optical(PORT4);
 optical OpticalBottom = optical(PORT1);
-// optical MiddleSensor = optical(PORT7);
+optical OpticalBottom1 = optical(PORT6);
 // Inertial sensor for smartdrive (same port as chassis uses)
 inertial Inertial = inertial(PORT17);
 
@@ -42,10 +43,12 @@ motor RightDriveB = motor(PORT19, ratio6_1, false);
 motor RightDriveC = motor(PORT18, ratio6_1, false);
 motor_group RightDrive = motor_group(RightDriveA, RightDriveB, RightDriveC);
 
-// Intake and Belt motors
-motor Intake = motor(PORT8, ratio6_1, false); //FirstStage
-motor Belt = motor(PORT11, ratio6_1, false); //SecondStage
-motor Score = motor(PORT12, ratio6_1, false); //ThirdStage
+// Intake motors
+motor FirstStage = motor(PORT8, ratio6_1, false); // forward intake
+motor SecondStage = motor(PORT11, ratio6_1, false); // forward outake / up
+motor ThirdStage = motor(PORT12, ratio6_1, false); // forward outake / up
+motor ZeroStage = motor(PORT13, ratio6_1, false); // forward up
+
 
 // Create smartdrive object for VEX built-in drivetrain methods
 // Parameters: leftMotorGroup, rightMotorGroup, inertialSensor, wheelTravel, trackWidth, wheelBase, units, externalGearRatio
@@ -58,6 +61,9 @@ smartdrive Drivetrain = smartdrive(LeftDrive, RightDrive, Inertial, 13.5, 13.5, 
 digital_out MatchLoader = digital_out(Brain.ThreeWirePort.A);
 digital_out Expansion = digital_out(Brain.ThreeWirePort.B);
 digital_out ColorSort = digital_out(Brain.ThreeWirePort.C);
+
+
+
 
 // A global instance of competition
 competition Competition;
@@ -207,7 +213,7 @@ void auto_Isolation(void) {
   runIntake(directionType::fwd, 3, true);
   goToGoal();
   Drivetrain.driveFor(directionType::rev, 115, distanceUnits::cm);
-  Belt.setVelocity(70, pct);
+  SecondStage.setVelocity(70, pct);
   runIntake(directionType::fwd, 5, false);
   // Back off from the goal
   Drivetrain.driveFor(directionType::fwd, 30, distanceUnits::cm);
@@ -566,8 +572,8 @@ int main() {
   //FILE *fp = fopen("/dev/serial2","wb");
   this_thread::sleep_for(loop_time);
 
-  Intake.setVelocity(30, percent);
-  Belt.setVelocity(30, percent);
+  FirstStage.setVelocity(30, percent);
+  SecondStage.setVelocity(30, percent);
 
   while(1) {
       // get last map data
