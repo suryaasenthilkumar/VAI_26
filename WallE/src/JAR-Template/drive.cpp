@@ -206,6 +206,11 @@ void Drive::set_swing_exit_conditions(float swing_settle_error, float swing_sett
   this->swing_timeout = swing_timeout;
 }
 
+void Drive::set_boomerang_constants(float lead, float setback){
+  this->boomerang_lead = lead;
+  this->boomerang_setback = setback;
+}
+
 /**
  * Gives the drive's absolute heading with Gyro correction.
  * 
@@ -518,6 +523,7 @@ void Drive::drive_to_point(float X_position, float Y_position, float drive_min_v
   }
 }
 
+
 /**
  * Drives to a specified point and orientation on the field.
  * Uses a boomerang controller. The carrot point is back from the target
@@ -602,6 +608,7 @@ void Drive::drive_to_pose(float X_position, float Y_position, float angle, float
     task::sleep(10);
   }
 }
+
 
 /**
  * Turns to a specified point on the field.

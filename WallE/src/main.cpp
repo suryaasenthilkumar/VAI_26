@@ -1,9 +1,9 @@
 /*----------------------------------------------------------------------------*/
 /*                                                                            */
 /*    Module:       main.cpp                                                  */
-/*    Author:       james                                                     */
-/*    Created:      Mon Aug 31 2020                                           */
-/*    Description:  V5 project                                                */
+/*    Author:       Robolabs                                                     */
+/*    Created:      Sun Jan 11 2026                                           */
+/*    Description:  VEX AI                                              */
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
@@ -18,32 +18,34 @@
 
 using namespace vex;
 
-brain Brain;
+brain Brain; 
 controller Controller;
-// Robot configuration code.
-gps LGPS = gps(PORT14, 12.5, -11, distanceUnits::cm, 270);
-gps RGPS = gps(PORT19, -12.5, -11, distanceUnits::cm, 90);
+
+// Sensors
+gps LGPS = gps(PORT9, -13.5, -5.5, distanceUnits::cm, 270);
+gps RGPS = gps(PORT10, 13.5, -5.5, distanceUnits::cm, 90);
 // DualGPS GPS = DualGPS(LGPS, RGPS, Inertial, vex::distanceUnits::cm);
-// optical IntakeSensor = optical(PORT14);
-// optical OutSensor = optical(PORT6);
+optical OpticalTop = optical(PORT4);
+optical OpticalBottom = optical(PORT1);
 // optical MiddleSensor = optical(PORT7);
+// Inertial sensor for smartdrive (same port as chassis uses)
+inertial Inertial = inertial(PORT17);
+
 // Left Drive
-motor LeftDriveA = motor(PORT1, ratio6_1, true);
-motor LeftDriveB = motor(PORT2, ratio6_1, true);
-motor LeftDriveC = motor(PORT11, ratio6_1, true);
+motor LeftDriveA = motor(PORT16, ratio6_1, true);
+motor LeftDriveB = motor(PORT15, ratio6_1, true);
+motor LeftDriveC = motor(PORT14, ratio6_1, true);
 motor_group LeftDrive = motor_group(LeftDriveA, LeftDriveB, LeftDriveC);
 // Right Drive
-motor RightDriveA = motor(PORT9, ratio6_1, true);
-motor RightDriveB = motor(PORT10, ratio6_1, false);
-motor RightDriveC = motor(PORT20, ratio6_1, false);
+motor RightDriveA = motor(PORT20, ratio6_1, false);
+motor RightDriveB = motor(PORT19, ratio6_1, false);
+motor RightDriveC = motor(PORT18, ratio6_1, false);
 motor_group RightDrive = motor_group(RightDriveA, RightDriveB, RightDriveC);
 
 // Intake and Belt motors
-motor Intake = motor(PORT8, ratio18_1, false);
-motor Belt = motor(PORT12, ratio18_1, false);
-
-// Inertial sensor for smartdrive (same port as chassis uses)
-inertial Inertial = inertial(PORT6);
+motor Intake = motor(PORT8, ratio6_1, false); //FirstStage
+motor Belt = motor(PORT11, ratio6_1, false); //SecondStage
+motor Score = motor(PORT12, ratio6_1, false); //ThirdStage
 
 // Create smartdrive object for VEX built-in drivetrain methods
 // Parameters: leftMotorGroup, rightMotorGroup, inertialSensor, wheelTravel, trackWidth, wheelBase, units, externalGearRatio
@@ -51,6 +53,11 @@ inertial Inertial = inertial(PORT6);
 // trackWidth = 12.0 inches (distance between left and right wheels)
 // wheelBase = 0.0 for tank drive (distance between front and back wheels, not applicable for tank)
 smartdrive Drivetrain = smartdrive(LeftDrive, RightDrive, Inertial, 13.5, 13.5, 0.0, distanceUnits::in, 0.75);
+
+// Pneumatics
+digital_out MatchLoader = digital_out(Brain.ThreeWirePort.A);
+digital_out Expansion = digital_out(Brain.ThreeWirePort.B);
+digital_out ColorSort = digital_out(Brain.ThreeWirePort.C);
 
 // A global instance of competition
 competition Competition;
@@ -88,7 +95,7 @@ Drive chassis(
   motor_group(RightDriveA, RightDriveB, RightDriveC),
   
   //Specify the PORT NUMBER of your inertial sensor, in PORT format (i.e. "PORT1", not simply "1"):
-  PORT6,
+  PORT17,
   
   //Input your wheel diameter. (4" omnis are actually closer to 4.125"):
   3.25,
@@ -100,7 +107,7 @@ Drive chassis(
   
   //Gyro scale, this is what your gyro reads when you spin the robot 360 degrees.
   //For most cases 360 will do fine here, but this scale factor can be very helpful when precision is necessary.
-  360,
+  356.4,
   
   /*---------------------------------------------------------------------------*/
   /*                                  PAUSE!                                   */
@@ -114,10 +121,10 @@ Drive chassis(
   
   //FOR HOLONOMIC DRIVES ONLY: Input your drive motors by position. This is only necessary for holonomic drives, otherwise this section can be left alone.
   //LF:      //RF:    
-  PORT1,     -PORT2,
+  0,     0,
   
   //LB:      //RB: 
-  PORT3,     -PORT4,
+  0,     0,
   
   //If you are using position tracking, this is the Forward Tracker port (the tracker which runs parallel to the direction of the chassis).
   //If this is a rotation sensor, enter it in "PORT1" format, inputting the port below.
@@ -146,6 +153,10 @@ DualGPS GPS = DualGPS(LGPS, RGPS, chassis.Gyro, vex::distanceUnits::cm);
 
 // Configure chassis PID/voltage limits with optimized tuning
 void configureChassis(){
+  // Set drive motors to brake mode instead of coast
+  // LeftDrive.setStopping(brake);
+  // RightDrive.setStopping(brake);
+  
   // Optimized drive PID: Kp=0.550, Ki=0.040, Kd=0.570
   chassis.set_drive_constants(12, 0.550, 0.040, 0.570, 0);
   chassis.set_heading_constants(8, 0.40, 0.0, 0.02, 0);
@@ -230,6 +241,13 @@ void auto_Interaction(void) {
 /*---------------------------------------------------------------------------*/
 
 bool firstAutoFlag = true;
+// Track autonomous start time for controller timer display
+static int g_autonStartMs = -1;
+static bool g_phase2Signal = false;
+static int remainingAutonMs() {
+  if (g_autonStartMs < 0) return 0;
+  return 105000 - (Brain.Timer.system() - g_autonStartMs);
+}
 
 // Simple bearing helper (math coords -> navigation heading)
 static double bearingDegrees(double fromX, double fromY, double toX, double toY) {
@@ -243,8 +261,19 @@ static double bearingDegrees(double fromX, double fromY, double toX, double toY)
   return nav;
 }
 
-// Path plan and follow using A* (cm coordinates), modeled after testPathPlanning
+// Path plan and follow using A* + Pure Pursuit (cm coordinates), modeled after testPurePursuit
 bool planAndFollowPathCm(double targetX_cm, double targetY_cm, float finalHeading, bool /*useSmooth*/) {
+  // Abort Phase 1 immediately at 20s remaining
+  if (g_autonStartMs >= 0 && remainingAutonMs() <= 20000 && !g_phase2Signal) {
+    Controller.Screen.clearScreen();
+    Controller.Screen.setCursor(1, 1);
+    Controller.Screen.print("Going to Park");
+    Controller.rumble("---");
+    g_phase2Signal = true;
+    chassis.drive_with_voltage(0, 0);
+    return false;
+  }
+
   double curr_x = GPS.xPosition();
   double curr_y = GPS.yPosition();
   double curr_h = GPS.heading();
@@ -258,8 +287,8 @@ bool planAndFollowPathCm(double targetX_cm, double targetY_cm, float finalHeadin
 
   const double robot_width_in = 13.5;
   const double robot_radius_cm = robot_width_in * 2.54 * 0.5; // ~17.1 cm
-  const double safety_margin_cm = 0.0;                        // tune as needed
-  const double grid_resolution_cm = 60.96 / 2.0;              // 12 in / 2
+  const double safety_margin_cm = 5.0;                        // keep 5cm away from obstacles
+  const double grid_resolution_cm = 30.0;                     // smoother waypoints
 
   std::vector<astar::Point> path = astar::findPath(
       fieldMap, curr_x, curr_y, targetX_cm, targetY_cm,
@@ -269,44 +298,39 @@ bool planAndFollowPathCm(double targetX_cm, double targetY_cm, float finalHeadin
     return false;
   }
 
-  for (size_t i = 0; i < path.size(); i++) {
-    double wp_x = path[i].first;
-    double wp_y = path[i].second;
-
-    curr_x = GPS.xPosition();
-    curr_y = GPS.yPosition();
-    curr_h = GPS.heading();
-
-    if ((curr_x == 0.0 && curr_y == 0.0) || std::isnan(curr_x) || std::isnan(curr_y)) {
-      return false;
+  // Prepare path for pure pursuit: skip first waypoint (current cell), use actual target as end
+  std::vector<astar::Point> adjustedPath;
+  if (path.size() <= 2) {
+    adjustedPath.push_back({targetX_cm, targetY_cm});
+  } else {
+    for (size_t i = 1; i < path.size(); i++) {
+      adjustedPath.push_back(path[i]);
     }
-
-    double bearing = bearingDegrees(curr_x, curr_y, wp_x, wp_y);
-    double dx = wp_x - curr_x;
-    double dy = wp_y - curr_y;
-    double dist_cm = sqrt(dx * dx + dy * dy);
-
-    if (dist_cm < 5.0) {
-      continue; // already close enough
-    }
-
-    double dist_in = dist_cm / 2.54;
-    chassis.set_heading(curr_h);
-    chassis.turn_to_angle(bearing);
-    chassis.drive_distance(dist_in);
+    adjustedPath.back() = {targetX_cm, targetY_cm};
   }
 
-  // Final heading if requested
-  if (finalHeading >= 0) {
-    chassis.turn_to_angle(finalHeading);
-  }
+  // Follow path using pure pursuit
+  const float baseVelocity = 6.0f;   // cruise speed
+  const float lookaheadDist = 20.0f; // lookahead distance in cm
+  const float endTolerance = 5.0f;   // arrival tolerance in cm
+  const bool useGPS = true;          // sensor fusion for accuracy
 
-  return true;
+  return purePursuitFollowPath(adjustedPath, baseVelocity, lookaheadDist,
+                               endTolerance, finalHeading, useGPS);
 }
 
 // ---------------------------------------------------------------------------
 // Phase helpers for 105s autonomous: Phase 1 random roaming, Phase 2 to (-120,0)
 // ---------------------------------------------------------------------------
+
+static void showTimeRemainingMs(int remainingMs) {
+  int secs = remainingMs / 1000;
+  if (secs < 0) secs = 0;
+  int mm = secs / 60;
+  int ss = secs % 60;
+  Controller.Screen.setCursor(1, 1);
+  Controller.Screen.print("Time %02d:%02d   ", mm, ss);
+}
 
 static bool isSafeRandomTarget(double x, double y) {
   // Keep targets within field bounds and away from the center obstacle
@@ -335,9 +359,41 @@ static bool pickRandomTarget(double &x, double &y) {
 
 static void runPhase1(int phaseMillis) {
   int phaseStart = Brain.Timer.system();
+  
+  // Get starting position
+  double startX = GPS.xPosition();
+  double startY = GPS.yPosition();
+  
+  // Waypoint loop: start -> (120,120) -> (-120,-120) -> (120,120) -> (-120,-120) -> ...
+  std::vector<std::pair<double, double>> waypoints = {
+    {startX, startY},
+    {120.0, 120.0},
+    {-120.0, -120.0}
+  };
+  
+  int wpIdx = 0;
+  
   while (Brain.Timer.system() - phaseStart < phaseMillis) {
-    double tx = 0, ty = 0;
-    if (!pickRandomTarget(tx, ty)) break;
+    // If timer hits 20s, signal and break immediately
+    if (remainingAutonMs() <= 20000 && !g_phase2Signal) {
+      Controller.Screen.clearScreen();
+      Controller.Screen.setCursor(1, 1);
+      Controller.Screen.print("Killed Phase 1 Task");
+      Controller.Screen.setCursor(2, 1);
+      Controller.Screen.print("Going to Park");
+      Controller.rumble("---");
+      g_phase2Signal = true;
+      break;
+    }
+    // Update controller timer for total 105s run
+    if (g_autonStartMs >= 0) {
+      int remaining = 105000 - (Brain.Timer.system() - g_autonStartMs);
+      showTimeRemainingMs(remaining);
+    }
+    
+    // Get current waypoint
+    double tx = waypoints[wpIdx].first;
+    double ty = waypoints[wpIdx].second;
 
     int moveStart = Brain.Timer.system();
     bool ok = planAndFollowPathCm(tx, ty, -1, true);
@@ -345,6 +401,13 @@ static void runPhase1(int phaseMillis) {
     // Bail if the move fails or runs long to keep phase responsive
     if (!ok || Brain.Timer.system() - moveStart > 8000) {
       chassis.drive_with_voltage(0, 0);
+    }
+    
+    // Move to next waypoint: start -> 150/150, then alternate between 150/150 and -150/-150
+    if (wpIdx == 0) {
+      wpIdx = 1;  // After start, go to (150,150)
+    } else {
+      wpIdx = (wpIdx == 1) ? 2 : 1;  // Alternate between (150,150) and (-150,-150)
     }
   }
 }
@@ -371,18 +434,22 @@ void autonomousMain(void) {
 }
 */
 
-// New autonomous: 105s total. Phase 1 (85s) random paths, Phase 2 (last ~20s) drive to (-120,0).
+// New autonomous: 105s total. Phase 1 (80s) waypoint loop, Phase 2 (last ~25s) drive to (-120,0).
 void autonomousMain(void) {
   const int totalMs = 105000;
-  const int phase1Ms = 85000;
+  const int phase1Ms = 80000;
   int start = Brain.Timer.system();
+  g_autonStartMs = start;
+  g_phase2Signal = false;
 
   runPhase1(phase1Ms);
-  Controller.rumble("---");
+  // Show timer immediately after Phase 1 completes or aborts
+  showTimeRemainingMs(totalMs - (Brain.Timer.system() - g_autonStartMs));
 
   if (Brain.Timer.system() - start < totalMs - 5000) { // leave buffer for endgame
     runPhase2();
   }
+  g_autonStartMs = -1;
 }
 
 // Task wrapper to run autonomous from driver control
@@ -393,7 +460,12 @@ int runAutonTask() {
 
 void driverControl(void) {
   static bool calibrated = false;
+  static bool pendingAuton = false;
   if(!calibrated) {
+    // Capture early A-press so it runs right after calibration
+    if (Controller.ButtonA.pressing()) {
+      pendingAuton = true;
+    }
     Controller.Screen.clearScreen();
     Controller.Screen.setCursor(1, 1);
     Controller.Screen.print("Calibrating GPS...");
@@ -403,6 +475,20 @@ void driverControl(void) {
     Controller.Screen.setCursor(1, 1);
     Controller.Screen.print("Ready!");
     calibrated = true;
+
+    // If A was pressed during calibration, run autonomous immediately
+    if (pendingAuton) {
+      Controller.Screen.clearScreen();
+      Controller.Screen.setCursor(1, 1);
+      Controller.Screen.print("Auton: 105s");
+      runAutonTask();
+      wait(500, msec);
+      Controller.Screen.clearScreen();
+      Controller.Screen.setCursor(1, 1);
+      Controller.Screen.print("Complete");
+      wait(500, msec);
+      pendingAuton = false;
+    }
   }
   while (true) {
     // Button A: start phase-based autonomous
@@ -422,12 +508,32 @@ void driverControl(void) {
     chassis.control_arcade();
     if(Controller.ButtonDown.pressing()){
       waitUntil(!Controller.ButtonDown.pressing());
-      testPathPlanning();
+      turnpidtest();
       wait(500, msec);
     }
     if(Controller.ButtonUp.pressing()){
       waitUntil(!Controller.ButtonUp.pressing());
       pidtest();
+      wait(500, msec);
+    }
+    if(Controller.ButtonL1.pressing()){
+      waitUntil(!Controller.ButtonL1.pressing());
+      testPathPlanning();
+      wait(500, msec);
+    }
+    if(Controller.ButtonL2.pressing()){
+      waitUntil(!Controller.ButtonL2.pressing());
+      drivepidtest();
+      wait(500, msec);
+    }
+    if(Controller.ButtonY.pressing()){
+      waitUntil(!Controller.ButtonY.pressing());
+      testPurePursuit();
+      wait(500, msec);
+    }
+    if(Controller.ButtonX.pressing()){
+      waitUntil(!Controller.ButtonX.pressing());
+      collectBestBalls(OBJECT::BallBlue);
       wait(500, msec);
     }
   }

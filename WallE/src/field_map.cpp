@@ -177,7 +177,7 @@ void FieldMap::populateStandardField() {
         {"LongGoal1", 63.0, 120.0, -63.0, 120.0, 124.0, 16.0, 2.0},
         {"LongGoal2", 63.0, -120.0, -63.0, -120.0, 124.0, 16.0, 2.0},
         // Combine middle X-shaped pair into one square obstacle centered at (0,0)
-        // Sized to cover both rotated middles (~66cm span); give a bit of margin.
+        // Sized to cover both rotated middles (~66cm span)
         {"MiddleSquare", -27.0, 0.0, 27.0, 0.0, 54.0, 54.0, 2.0},
         {"BluePark", 135.0, 0.0, 183.0, 0.0, 48.0, 43.0, 2.0},
         {"RedPark", -135.0, 0.0, -183.0, 0.0, 48.0, 43.0, 2.0},

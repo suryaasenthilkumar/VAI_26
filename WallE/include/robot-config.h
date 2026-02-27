@@ -11,9 +11,9 @@ extern controller Controller;
 extern gps LGPS;
 extern gps RGPS;
 extern DualGPS GPS;
-extern optical IntakeSensor;
-extern optical OutSensor;
-extern optical MiddleSensor;
+extern optical OpticalTop;
+extern optical OpticalBottom;
+// extern optical MiddleSensor;
 // Left Drive
 extern motor LeftDriveA;
 extern motor LeftDriveB;
@@ -25,9 +25,13 @@ extern motor RightDriveB;
 extern motor RightDriveC;
 extern motor_group RightDrive;
 
-// Intake and Belt motors
+// Intake motors
 extern motor Intake;
 extern motor Belt;
+extern motor Score;
+
+// Pneumatics
+extern digital_out ColorSort;
 
 // Inertial sensor for smartdrive
 extern inertial Inertial;

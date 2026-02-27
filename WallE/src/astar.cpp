@@ -213,5 +213,26 @@ std::vector<Point> astar::findPath(const FieldMap &map,
         curk = it->second;
     }
     std::reverse(path.begin(), path.end());
+
+    // Apply vertical offsets for waypoints along the walls of the field
+    const double field_half_cm = 182.88; // Half of 365.76 cm field height
+    const double edge_threshold_cm = resolution_cm;  // One tile width
+    const double edge_offset_cm = 6.0*2.54; // 6 inches (15.24 cm) inwards
+    for (size_t i = 0; i < path.size(); i++) {
+        double wp_y = path[i].second;
+        // Offset down
+        if(wp_y > field_half_cm - edge_threshold_cm) {
+            path[i].second -= edge_offset_cm;
+        } else if(wp_y < -field_half_cm + edge_threshold_cm) { // Offset up
+            path[i].second += edge_offset_cm;
+        }
+
+    }
+
+    // First and last waypoints are exact targets
+    if(!path.empty()){
+        path.front() = {sx, sy};
+        path.back() = {gx, gy};
+    }
     return path;
 }

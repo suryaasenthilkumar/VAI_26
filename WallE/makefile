@@ -12,6 +12,9 @@ SRC_C += $(wildcard src/*.c)
 SRC_C += $(wildcard src/*/*.cpp) 
 SRC_C += $(wildcard src/*/*.c)
 
+# Exclude Localizer from build (kept in repo but not compiled)
+SRC_C := $(filter-out src/Localizer.cpp, $(SRC_C))
+
 OBJ = $(addprefix $(BUILD)/, $(addsuffix .o, $(basename $(SRC_C))) )
 
 # location of include files that c and cpp files depend on

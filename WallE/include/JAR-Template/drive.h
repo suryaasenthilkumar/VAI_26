@@ -100,7 +100,8 @@ public:
   void set_turn_exit_conditions(float turn_settle_error, float turn_settle_time, float turn_timeout);
   void set_drive_exit_conditions(float drive_settle_error, float drive_settle_time, float drive_timeout);
   void set_swing_exit_conditions(float swing_settle_error, float swing_settle_time, float swing_timeout);
-
+  void set_boomerang_constants(float lead, float setback);
+  
   void turn_to_angle(float angle);
   void turn_to_angle(float angle, float turn_max_voltage);
   void turn_to_angle(float angle, float turn_max_voltage, float turn_settle_error, float turn_settle_time, float turn_timeout);
