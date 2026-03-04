@@ -61,7 +61,7 @@ smartdrive Drivetrain = smartdrive(LeftDrive, RightDrive, Inertial, 13.5, 13.5, 
 digital_out MatchLoader = digital_out(Brain.ThreeWirePort.A);
 digital_out Expansion = digital_out(Brain.ThreeWirePort.B);
 digital_out ColorSort = digital_out(Brain.ThreeWirePort.C);
-
+digital_out Stopper = digital_out(Brain.ThreeWirePort.D);
 
 
 
@@ -183,14 +183,14 @@ void configureChassis(){
 // The Demo is symetrical, we send the same data and display the same status on both
 // manager and worker robots
 // Comment out the following definition to build for the worker robot
-#define  MANAGER_ROBOT    1
+// #define  MANAGER_ROBOT    1
 
 #if defined(MANAGER_ROBOT)
 #pragma message("building for the manager")
 ai::robot_link       link( PORT15, "robot_32456_1", linkType::manager );
 #else
 #pragma message("building for the worker")
-ai::robot_link       link( PORT13, "robot_32456_1", linkType::worker );
+ai::robot_link       link( PORT21, "robot_32456_1", linkType::worker );
 #endif
 
 /*---------------------------------------------------------------------------*/

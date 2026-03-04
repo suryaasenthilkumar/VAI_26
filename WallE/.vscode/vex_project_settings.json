@@ -1,7 +1,7 @@
 {
 	"project": {
 		"name": "walle",
-		"slot": 1,
+		"slot": 4,
 		"description": "Empty V5 C++ Project",
 		"platform": "V5",
 		"creationDate": "Fri, 27 Feb 2026 23:16:24 GMT",

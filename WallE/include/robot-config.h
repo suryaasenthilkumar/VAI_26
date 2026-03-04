@@ -29,9 +29,11 @@ extern motor_group RightDrive;
 extern motor FirstStage;
 extern motor SecondStage;
 extern motor ThirdStage;
+extern motor ZeroStage;
 
 // Pneumatics
 extern digital_out ColorSort;
+extern digital_out Stopper;
 
 // Inertial sensor for smartdrive
 extern inertial Inertial;
