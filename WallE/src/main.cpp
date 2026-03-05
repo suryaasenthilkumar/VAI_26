@@ -183,14 +183,14 @@ void configureChassis(){
 // The Demo is symetrical, we send the same data and display the same status on both
 // manager and worker robots
 // Comment out the following definition to build for the worker robot
-// #define  MANAGER_ROBOT    1
+#define  MANAGER_ROBOT    1
 
 #if defined(MANAGER_ROBOT)
 #pragma message("building for the manager")
-ai::robot_link       link( PORT15, "robot_32456_1", linkType::manager );
+ai::robot_link       link( PORT21, "robot_32456_1", linkType::manager );
 #else
 #pragma message("building for the worker")
-ai::robot_link       link( PORT21, "robot_32456_1", linkType::worker );
+ai::robot_link       link( PORT10, "robot_32456_1", linkType::worker );
 #endif
 
 /*---------------------------------------------------------------------------*/
@@ -560,8 +560,8 @@ int main() {
   thread t1(dashboardTask);
 
   // Set up callbacks for autonomous and driver control periods.
-  Competition.autonomous(autonomousMain);
-  Competition.drivercontrol(driverControl);
+  // Competition.autonomous(autonomousMain);
+  // Competition.drivercontrol(driverControl);
 
   // print through the controller to the terminal (vexos 1.0.12 is needed)
   // As USB is tied up with Jetson communications we cannot use
@@ -572,17 +572,25 @@ int main() {
   //FILE *fp = fopen("/dev/serial2","wb");
   this_thread::sleep_for(loop_time);
 
-  FirstStage.setVelocity(30, percent);
-  SecondStage.setVelocity(30, percent);
+  // FirstStage.setVelocity(30, percent);
+  // SecondStage.setVelocity(30, percent);
+
+  float x_mock = 250.0f;
+  float y_mock = 250.0f;
+  float az_mock = 90.0f;
+  int32_t status_mock = 1.0f;
 
   while(1) {
       // get last map data
       jetson_comms.get_data( &local_map );
 
-      // set our location to be sent to partner robot
-      link.set_remote_location( local_map.pos.x, local_map.pos.y, local_map.pos.az, local_map.pos.status );
+      // mock data sent, replace with actual location data from jetson
+      link.set_remote_location(x_mock, y_mock, az_mock, status_mock);
 
-      // fprintf(fp, "%.2f %.2f %.2f\n", local_map.pos.x, local_map.pos.y, local_map.pos.az)
+      // set our location to be sent to partner robot
+      // link.set_remote_location( local_map.pos.x, local_map.pos.y, local_map.pos.az, local_map.pos.status );
+
+      printf("%.2f %.2f %.2f\n", local_map.pos.x, local_map.pos.y, local_map.pos.az);
 
       // request new data    
       // NOTE: This request should only happen in a single task.    

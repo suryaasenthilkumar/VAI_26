@@ -1,4 +1,4 @@
-#include "robot-config.h";
+#include "robot-config.h"
 // intakes until full
 // only bottom sort run
 void intakeBalls() {
@@ -44,9 +44,9 @@ void outakeBallsTop(vex::directionType direction) {
   }
 }
 
-void stopIntake() {
-  ZeroStage.stop(coast);
-  FirstStage.stop(brake);
-  SecondStage.stop(brake);
-  ThirdStage.stop(brake);
-}
+// void stopIntake() {
+//   ZeroStage.stop(coast);
+//   FirstStage.stop(brake);
+//   SecondStage.stop(brake);
+//   ThirdStage.stop(brake);
+// }
