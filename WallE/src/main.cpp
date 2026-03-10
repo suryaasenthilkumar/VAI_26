@@ -580,15 +580,23 @@ int main() {
   float az_mock = 90.0f;
   int32_t status_mock = 1.0f;
 
+  
   while(1) {
       // get last map data
       jetson_comms.get_data( &local_map );
 
       // mock data sent, replace with actual location data from jetson
-      link.set_remote_location(x_mock, y_mock, az_mock, status_mock);
+      // link.set_remote_location(x_mock, y_mock, az_mock, status_mock);
 
       // set our location to be sent to partner robot
-      // link.set_remote_location( local_map.pos.x, local_map.pos.y, local_map.pos.az, local_map.pos.status );
+      link.set_remote_location( local_map.pos.x, local_map.pos.y, local_map.pos.az, local_map.pos.status );
+
+      float gps_x = GPS.xPosition();
+      float gps_y = GPS.yPosition();
+      float gps_heading = GPS.heading();
+      float gps_status = GPS.isCalibrating() ? 0 : 1;
+
+      link.set_remote_location(gps_x, gps_y, gps_heading, gps_status);
 
       printf("%.2f %.2f %.2f\n", local_map.pos.x, local_map.pos.y, local_map.pos.az);
 
