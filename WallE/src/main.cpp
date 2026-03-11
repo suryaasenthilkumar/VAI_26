@@ -203,20 +203,112 @@ ai::robot_link       link( PORT10, "robot_32456_1", linkType::worker );
 /*  You must modify the code to add your own robot specific commands here.   */
 /*---------------------------------------------------------------------------*/
 
-void auto_Isolation(void) {
-  // Calibrate GPS Sensor
-  GPS.calibrate();
-  // Optional wait to allow for calibration
-  waitUntil(!(GPS.isCalibrating()));
+bool mbool = false;
+bool cbool = false;
+bool stopbool = false;
+// bool dbool = false;
+void usercontrol(void) {
+  thread colorTop = thread(onTopDetectedThread);
+  thread colorBottom = thread(onBottomDetectedThread);
+  colorBottom.setPriority(15);
+  colorTop.setPriority(14);
+  // User control code here, inside the loop
+  while (1) {
+    if (Controller.ButtonR1.pressing()) {
+      intakeBalls();
+    } else if (Controller.ButtonR2.pressing()) {
+      // outakes middle goal bottom, no sort
+      outakeBallsBottom();
+    } else if (Controller.ButtonL1.pressing()) {
+      // outakes long goal
+      outakeBallsTop(forward);
+    } else if (Controller.ButtonL2.pressing()) {
+      // outakes middle goal top
+      outakeBallsTop(reverse);
+    } else {
+      FirstStage.stop(hold);
+      SecondStage.stop(hold);
+      ZeroStage.stop(hold);
+      ThirdStage.stop(hold);
+    }
 
-  goToObject(OBJECT::BallBlue);
-  runIntake(directionType::fwd, 3, true);
-  goToGoal();
-  Drivetrain.driveFor(directionType::rev, 115, distanceUnits::cm);
-  SecondStage.setVelocity(70, pct);
-  runIntake(directionType::fwd, 5, false);
-  // Back off from the goal
-  Drivetrain.driveFor(directionType::fwd, 30, distanceUnits::cm);
+    if (Controller.ButtonA.pressing()) {
+      mbool = !mbool;
+      waitUntil(!Controller.ButtonA.pressing());
+    }
+    MatchLoader.set(mbool);
+
+    chassis.control_arcade();
+
+    wait(20, msec); // Sleep the task for a short amount of time to
+                    // prevent wasted resources.
+  }
+}
+
+void auto_Isolation(void) {
+  thread colorTop = thread(onTopDetectedThread);
+  thread colorBottom = thread(onBottomDetectedThread);
+  colorBottom.setPriority(15);
+  colorTop.setPriority(14);
+
+  // chassis.get_X_position();
+  // chassis.get_Y_position();
+  // chassis.set_coordinates(0, 0, 0);
+  
+  // starts right left side, drives to middle goal and intakes red ball
+  planAndFollowPathCm(-38.083, 36.654, 315, true);
+  chassis.drive_max_voltage = 3;
+  intakeBalls();
+  chassis.drive_distance(7.7);
+  MatchLoader.set(true);
+  wait(500, msec);
+  stopIntake();
+
+  // positions over middle goal and outakes ball
+  chassis.drive_max_voltage = 6;
+  chassis.drive_distance(-12);
+  outakeBallsTop(reverse);
+  wait(1000, msec);
+
+  // intakes balls / sorts while driving towards long goal
+  intakeBalls();
+  MatchLoader.set(false);
+  // chassis.drive_distance(46.7);
+  planAndFollowPathCm(-118, 105, 0, true);
+
+  // knocks balls on tower down and intakes two red
+  MatchLoader.set(true);
+  chassis.drive_max_voltage = 4;
+  chassis.drive_distance(8);
+  chassis.drive_max_voltage = 10;
+
+  // positions in loader / continues intaking / sorting balls
+  planAndFollowPathCm(-151, 115, 270, true);
+  wait(2000, msec);
+
+
+  // chassis.drive_distance(-31);
+  planAndFollowPathCm(-64, 116, 270, true);
+  outakeBallsTop(forward);
+
+
+
+
+  // // Calibrate GPS Sensor
+  // GPS.calibrate();
+  // // Optional wait to allow for calibration
+  // waitUntil(!(GPS.isCalibrating()));
+
+  // goToObject(OBJECT::BallBlue);
+  // // runIntake(directionType::fwd, 3, true);
+  // intakeBalls();
+  // goToGoal();
+  // Drivetrain.driveFor(directionType::rev, 115, distanceUnits::cm);
+  // SecondStage.setVelocity(70, pct);
+  // // runIntake(directionType::fwd, 5, false);
+  // intakeBalls();
+  // // Back off from the goal
+  // Drivetrain.driveFor(directionType::fwd, 30, distanceUnits::cm);
 
 }
 
@@ -572,15 +664,6 @@ int main() {
   //FILE *fp = fopen("/dev/serial2","wb");
   this_thread::sleep_for(loop_time);
 
-  // FirstStage.setVelocity(30, percent);
-  // SecondStage.setVelocity(30, percent);
-
-  float x_mock = 250.0f;
-  float y_mock = 250.0f;
-  float az_mock = 90.0f;
-  int32_t status_mock = 1.0f;
-
-  
   while(1) {
       // get last map data
       jetson_comms.get_data( &local_map );

@@ -47,8 +47,17 @@ void turnTo(double angle, int tolerance, int speed);
 // Drives the robot in a specified heading for a given distance and speed
 void driveFor(int heading, double distance, int speed);
 
-void runIntake(vex::directionType dir);
-void runIntake(vex::directionType dir, int rotations, bool driveForward);
+// void runIntake(vex::directionType dir);
+// void runIntake(vex::directionType dir, int rotations, bool driveForward);
+
+// intake balls until full
+void intakeBalls();
+
+// outakes balls on middle bottom goal
+void outakeBallsBottom();
+
+// outakes balls, reverse == middle top, forward == long goal top
+void outakeBallsTop(directionType dir);
 
 void stopIntake();
 

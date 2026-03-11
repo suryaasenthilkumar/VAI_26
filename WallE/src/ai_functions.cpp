@@ -184,21 +184,67 @@ void goToObject(OBJECT type){
     moveToPosition(target.mapLocation.x*100, target.mapLocation.y*100);
 }
 
-void runIntake(vex::directionType dir) {
-    FirstStage.spin(dir);
-    SecondStage.spin(dir);
+// void runIntake(vex::directionType dir) {
+//     FirstStage.spin(dir);
+//     SecondStage.spin(dir);
+// }
+
+// void runIntake(vex::directionType dir, int rotations, bool driveForward = false) {
+//     FirstStage.spinFor(dir, rotations, vex::rotationUnits::rev, false);
+//     SecondStage.spinFor(dir, rotations, vex::rotationUnits::rev, !driveForward);
+//     if (driveForward)
+//         Drivetrain.driveFor(directionType::fwd, 70, vex::distanceUnits::cm, 40, velocityUnits::pct);
+// }
+
+// intakes until full
+void intakeBalls() {
+  Stopper.set(true);
+  if (OpticalBottom1.isNearObject() || OpticalBottom.isNearObject()) {
+    ZeroStage.spin(fwd, 5, percent);
+  } else {
+    ZeroStage.spin(fwd, 100, percent);
+  }
+  // responsible for intaking balls correctly
+  FirstStage.spin(fwd, 100, percent);
+  if (OpticalTop.isNearObject()) {
+    SecondStage.stop(coast);
+    ThirdStage.stop(coast);
+  } else {
+    SecondStage.spin(fwd, 100, percent);
+    ThirdStage.spin(fwd,100,percent);
+  }
 }
 
-void runIntake(vex::directionType dir, int rotations, bool driveForward = false) {
-    FirstStage.spinFor(dir, rotations, vex::rotationUnits::rev, false);
-    SecondStage.spinFor(dir, rotations, vex::rotationUnits::rev, !driveForward);
-    if (driveForward)
-        Drivetrain.driveFor(directionType::fwd, 70, vex::distanceUnits::cm, 40, velocityUnits::pct);
+// middle bottom
+void outakeBallsBottom() {
+  ColorSort.set(false);
+  ZeroStage.spin(vex::directionType::rev, 100, percent);
+  FirstStage.spin(vex::directionType::rev, 100, percent);
+  SecondStage.spin(vex::directionType::rev, 100, percent);
+  ThirdStage.spin(vex::directionType::rev, 100, percent);
+}
+
+// reverse == middle top, forward == top
+void outakeBallsTop(vex::directionType direction) {
+  Stopper.set(false);
+  if (OpticalBottom1.isNearObject() || OpticalBottom.isNearObject()) {
+    ZeroStage.spin(fwd, 5, percent);
+  } else {
+    ZeroStage.spin(fwd, 100, percent);
+  }
+  FirstStage.spin(fwd, 100, percent);
+  SecondStage.spin(fwd, 100, percent);
+  thirdStageDefaultDir = direction;
+  if (!thirdStageOverrideActive) {
+    ThirdStage.spin(thirdStageDefaultDir, 12000, voltageUnits::mV);
+  }
 }
 
 void stopIntake() {
-    FirstStage.stop();
-    SecondStage.stop();
+  ZeroStage.stop(coast);
+  FirstStage.stop(brake);
+  SecondStage.stop(brake);
+  ThirdStage.stop(brake);
 }
 
 void emergencyStop() {
@@ -408,7 +454,7 @@ void collectBestBalls(OBJECT type) {
         }
 
         // Intake to pick up the ball once reached
-        runIntake(directionType::fwd);
+        intakeBalls();
         wait(800, msec);
         stopIntake();
 
@@ -494,7 +540,7 @@ void collectBestBallsWithStatus(OBJECT type) {
         }
 
         // Step 5: run intake to collect
-        runIntake(directionType::fwd);
+        intakeBalls();
         wait(800, msec);
         stopIntake();
 
